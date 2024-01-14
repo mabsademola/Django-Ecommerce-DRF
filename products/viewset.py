@@ -1,6 +1,7 @@
 from rest_framework import viewsets,filters, status
 
-from products.tests import initiate_payment
+# from products.tests import initiate_payment
+import requests
 from . models import *
 from api.filters import ProductFilter
 from .serializers import *
@@ -10,6 +11,44 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.mixins import ListModelMixin,CreateModelMixin, RetrieveModelMixin, DestroyModelMixin
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+
+def initiate_payment(amount, email, order_id):
+    url = "https://api.flutterwave.com/v3/payments"
+    headers = {
+        "Authorization": f"Bearer {settings.FLW_SEC_KEY}"
+        
+    }
+    
+    data = {
+        "tx_ref": str(uuid.uuid4()),
+        "amount": str(amount), 
+        "currency": "USD",
+        "redirect_url": "http:/127.0.0.1:8000/api/orders/confirm_payment/?o_id=" + order_id,
+        "meta": {
+            "consumer_id": 23,
+            "consumer_mac": "92a3-912ba-1192a"
+        },
+        "customer": {
+            "email": email,
+            "phonenumber": "080****4528",
+            "name": "Yemi Desola"
+        },
+        "customizations": {
+            "title": "Pied Piper Payments",
+            "logo": "http://www.piedpiper.com/app/themes/joystick-v27/images/logo.png"
+        }
+    }
+    
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response_data = response.json()
+        return Response(response_data)
+    
+    except requests.exceptions.RequestException as err:
+        print("the payment didn't go through")
+        return Response({"error": str(err)}, status=500)
+
 
 
 class ProductsViewSet(viewsets.ModelViewSet):
@@ -115,8 +154,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         amount = order.total_price
         email = request.user.email
         order_id = str(order.id)
-        # redirect_url = "http://127.0.0.1:8000/confirm"
-        return initiate_payment(amount, email, order_id)
+        redirect_url = "http://127.0.0.1:8000/confirm"
+        # return redirect_url
+        return initiate_payment(amount, email, 
+                                # order_id
+                                
+                                )
     
     # @action(detail=False, methods=["POST"])
     # def confirm_payment(self, request):
